@@ -118,9 +118,11 @@ def serve_card(req):
     else:
         cipher_suite = req.COOKIES.get(KEY_OF_RANDOM_SUITE)
         plain_suite = decrypt_list(cipher_suite)
+        resp = HttpResponse()
         ps.load_suite(plain_suite, int(req.COOKIES.get(KEY_OF_SUITE_INDEX)))
         resp.write(ps.get_next().get_str())
         resp.set_cookie(KEY_OF_SUITE_INDEX, ps.next_index)
+        return resp
 
 
 def index(req):
