@@ -111,7 +111,7 @@ class Player:
         self.has_ended = has_ended # 0: False
         self.dealer = dealer
     def get_points(self):
-        s = sum([x.get_value()) for x in self.cards])
+        s = sum([x.get_value() for x in self.cards])
         if any([x.is_Ace() for x in self.cards]) and s < 12:
             s += 10
         return s
@@ -120,7 +120,7 @@ class Player:
             c = [x.get_value() for x in self.cards]
             return sorted(c) == [1, 10]
         return False
-    def is_21():
+    def is_21(self):
         return self.get_points() == 21
     def add_card(self, card):
         if len(self.cards) < 5:
@@ -151,8 +151,8 @@ class Game:
         ret = {}
         ret["number_of_players"] = self.spots
         for i in range(len(self.players)):
-            ret["players_cards_%d" % i] = self.players[i].get_cards()
-            ret["players_ended_%d" % i] = self.players[i].has_ended
+            ret["players_cards_%d" % (i+1)] = self.players[i].get_cards()
+            ret["players_ended_%d" % (i+1)] = self.players[i].has_ended
         ret["number_of_sets"] = self.ps.sets
         return ret
 
@@ -174,6 +174,7 @@ class Game:
         ret["dealer_ended"] = self.dealer.has_ended
         ret["suites"] = self.ps.suites
         ret["next_index"] = self.ps.next_index
+        return ret
         
     def serve_one_card(self, player_id):
         # player id starting from 1
@@ -199,7 +200,8 @@ def decrypt_list(cipher):
 
 def encrypt_str(s):
     salt = "".join([random.choice(string.ascii_letters) for _ in range(10)])
-    return ENCRYPTION_TYPE.encrypt(s + SEPARATOR + salt)
+    plain = (s + SEPARATOR + salt).encode()
+    return ENCRYPTION_TYPE.encrypt(plain)
 
 def encrypt_number(a):
     """ given a number, encrypt """
@@ -214,7 +216,8 @@ def encrypt_game(game):
     ret = {}
     for k in origin.keys():
         v = origin[k]
-        new_key = encrypt_str(k)
+        #new_key = encrypt_str(k)
+        new_key = k
         if type(v) == int:
             new_value = encrypt_number(v)
         elif type(v) == list:
@@ -224,7 +227,7 @@ def encrypt_game(game):
 
 def set_cookie(resp, game):
     """ set cookies for http response """
-    cookies = encrypt_list(game)
+    cookies = encrypt_game(game)
     for k in cookies:
         resp.set_cookie(k, cookies[k])
     
@@ -232,7 +235,8 @@ def decrypt_game(cookie):
     ret = {}
     for k in cookie.keys():
         try:
-            game_key = decrypt_str(k)
+            #game_key = decrypt_str(k)
+            game_key = k
             # for all values, decrypt as a list, should check later
             game_value = decrypt_list(cookie[k])
             ret[game_key] = game_value
@@ -250,7 +254,6 @@ def load_game(info):
     if n_of_players < 0:
         raise ValueError("invalid number of players")
 
-    prev_ended = False
     for i in range(n_of_players):
         cards_key = "players_cards_%d" % (i+1)
         ended_key = "players_ended_%d" % (i+1)
@@ -260,12 +263,6 @@ def load_game(info):
         for c in info[cards_key]:
             a_list.append(create_card(c))
         p = Player(i+1, a_list, info[ended_key][0])
-        if i == 0:
-            prev_ended = p.has_ended
-        else:
-            if not prev_ended and p.has_ended:
-                raise ValueError("player order messed up")
-            prev_ended = p.has_ended
         game.players.append(p)
     # dealer
     dealer_cards = "dealer_cards"
@@ -276,8 +273,6 @@ def load_game(info):
     for c in info[dealer_ended]:
         d_list.append(create_card(c))
     game.dealer = Player(0, d_list, info[dealer_ended][0])
-    if not prev_ended and game.dealer.has_ended:
-        raise ValueError("dealer ended before player done")
     # pokers
     if "suites" not in info or "next_index" not in info or "number_of_sets" not in info:
         raise ValueError("missing poker info")

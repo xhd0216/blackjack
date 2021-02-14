@@ -19,7 +19,7 @@
 <script>
     function shuffle_cards() {
         var req = new XMLHttpRequest();
-        var nPlayers = document.getElementById("n_players").innerHTML
+        var nPlayers = document.getElementById("n_players").value;
         req.onreadystatechange = function() {
             if (req.readyState == 4 && req.status == 200) {
                 document.getElementById("spot").innerHTML = req.responseText;
