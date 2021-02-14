@@ -17,7 +17,7 @@
 
 <p id="spot">here</p>
 <script>
-    function shuffle_cards() {
+    function shuffle_cards(nCards) {
         var req = new XMLHttpRequest();
         req.onreadystatechange = function() {
             if (req.readyState == 4 && req.status == 200) {
@@ -27,7 +27,7 @@
                 document.getElementById("spot").innerHTML = "error";
             }
         };
-        req.open("GET", document.URL + "shuffle", true);
+        req.open("GET", document.URL + `shuffle?cards=${nCards}`, true);
         req.send(null);
     }
 </script>

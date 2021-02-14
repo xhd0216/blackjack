@@ -79,6 +79,16 @@ class PokerSets:
         self.next_index = a_index
         self.suites = a_list
 
+class Game:
+    def __init__(self, n_spots=3, n_sets=1):
+        self.ps = PokerSets(n_sets)
+        self.spots = n_spots
+        # TODO deal with double down.
+        self.ps.shuffle()
+
+    def load_game(self, a_list):
+        pass
+
 SEPARATOR = "_"
 def encrypt_list(a_list):
     """ given a poker set, encrypt """
@@ -120,7 +130,10 @@ def serve_card(req):
         plain_suite = decrypt_list(cipher_suite)
         resp = HttpResponse()
         ps.load_suite(plain_suite, int(req.COOKIES.get(KEY_OF_SUITE_INDEX)))
-        resp.write(ps.get_next().get_str())
+        # serve N cards
+        n = int(req.GET.get('cards', '1'))
+        for _ in range(n):
+            resp.write(ps.get_next().get_str())
         resp.set_cookie(KEY_OF_SUITE_INDEX, ps.next_index)
         return resp
 
