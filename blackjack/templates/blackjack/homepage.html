@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>Welcome to Blackjack!</h1>
+
+<label for="n_players">select number of players/spots</label>
+<select name="n_players" id="n_players">
+    <option value=1>1</option>
+    <option value=2>2</option>
+    <option value=3 selected="selected">3</option>
+    <option value=4>4</option>
+    <option value=5>5</option>
+    <option value=6>6</option>
+    <option value=7>7</option>
+</select>
+
+<p id="spot">here</p>
+<script>
+    function shuffle_cards() {
+        var req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+            if (req.readyState == 4 && req.status == 200) {
+                document.getElementById("spot").innerHTML = req.responseText;
+            }
+            else {
+                document.getElementById("spot").innerHTML = "error";
+            }
+        };
+        req.open("GET", document.URL + "shuffle", true);
+        req.send(null);
+    }
+</script>
+<button onclick="shuffle_cards()">Shuffle</button>
+
+</body>
+</html>
