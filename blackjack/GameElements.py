@@ -195,7 +195,7 @@ class Game:
         """ get public status viewable to players """
         ret = {}
         ret["number_of_players"] = self.spots
-        for i in range(len(self.players)):
+        for i in range(len(self.players)-1):
             ret["players_cards_%d" % (i+1)] = self.players[i+1].get_cards()
             ret["players_ended_%d" % (i+1)] = self.players[i+1].has_ended
         ret["number_of_sets"] = self.ps.sets

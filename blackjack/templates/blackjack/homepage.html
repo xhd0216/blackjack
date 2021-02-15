@@ -22,7 +22,8 @@
         var nPlayers = document.getElementById("n_players").value;
         req.onreadystatechange = function() {
             if (req.readyState == 4 && req.status == 200) {
-                document.getElementById("spot").innerHTML = req.responseText;
+                var json_obj = JSON.parse(req.responseText);
+                document.getElementById("spot").innerHTML = json_obj.dealer_cards[0]
             }
             else {
                 document.getElementById("spot").innerHTML = "error";
