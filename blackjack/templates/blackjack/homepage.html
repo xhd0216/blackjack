@@ -15,18 +15,35 @@
     <option value=7>7</option>
 </select>
 
-<p id="spot">here</p>
+<div id="reserved">
+    <table id="dynamic_table">
+    </table>
+</div>
+
 <script>
     function shuffle_cards() {
         var req = new XMLHttpRequest();
         var nPlayers = document.getElementById("n_players").value;
+        var tbl = document.getElementById("dynamic_table");
+
         req.onreadystatechange = function() {
             if (req.readyState == 4 && req.status == 200) {
                 var json_obj = JSON.parse(req.responseText);
-                document.getElementById("spot").innerHTML = json_obj.dealer_cards[0]
+                tbl.innerHTML = ""
+                for (var i = 1; i <= nPlayers; i++) {
+                    var row = document.createElement("tr");
+                    var pkey = `players_cards_${i}`;
+                    for (var j = 0; j < json_obj[pkey].length; j++) {
+                        var cell = document.createElement("td");
+                        var cellText = document.createTextNode(json_obj[pkey][j]);
+                        cell.appendChild(cellText);
+                        row.appendChild(cell);
+                    }
+                    tbl.appendChild(row);
+                }
             }
             else {
-                document.getElementById("spot").innerHTML = "error";
+                // TODO: show error message here
             }
         };
         req.open("GET", document.URL + `restart?n_players=${nPlayers}`, true);

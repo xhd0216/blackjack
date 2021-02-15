@@ -213,7 +213,7 @@ class Game:
         #   ...
         #   dealer_cards (list)
         #   dealer_ended (int)
-        #   suites (list)
+        #   suites (list)0
         #   next_index (int)
         #   number_of_sets (int)
         ret = self.get_public_status()
