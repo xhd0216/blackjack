@@ -57,14 +57,14 @@ class Cards:
 def create_card(s):
     """ create card from string """
     # for example, diamonds A
-    card = s.split()
+    card = s.split(" ")
     if card[0] not in SUITES or card[1] not in FACES_LIST:
-        raise ValueError("not a valid card")
+        raise ValueError("not a valid card " + s)
     return Cards(card[1], SUITES_DICT[card[0]])
 
 
 def check_shuffled(a_list):
-    if set(a_list) != set(range(len(a_list))):
+    if set([int(x) for x in a_list]) != set(range(len(a_list))):
         raise ValueError("the given list is not valid")
 
 
@@ -105,7 +105,7 @@ def load_game(info):
     """ given a decrypted dictionary, load a game """
     game = Game()
     game.players = []
-    n_of_players = info["number_of_players"]
+    n_of_players = int(info["number_of_players"][0])
     if n_of_players < 0:
         raise ValueError("invalid number of players")
 
@@ -125,16 +125,16 @@ def load_game(info):
     if dealer_cards not in info or dealer_ended not in info:
         raise ValueError("missing dealer info")
     d_list = []
-    for c in info[dealer_ended]:
+    for c in info[dealer_cards]:
         d_list.append(create_card(c))
     game.dealer = Player(0, d_list, info[dealer_ended][0])
     # pokers
     if "suites" not in info or "next_index" not in info or "number_of_sets" not in info:
         raise ValueError("missing poker info")
-    ps = PokerSets(info["number_of_sets"][0])
+    ps = PokerSets(int(info["number_of_sets"][0]))
     ps.suites = info["suites"]
     check_shuffled(ps.suites)
-    ps.next_index = info["next_index"][0]
+    ps.next_index = int(info["next_index"][0])
     game.ps = ps
 
     # count total number of cards
@@ -142,6 +142,8 @@ def load_game(info):
     total_cards += len(game.dealer.cards)
     if total_cards != game.ps.next_index:
         raise ValueError("number of cards mismatched")
+
+    return game
 
 class Player:
     def __init__(self, pid, cards=[], has_ended=0, dealer=False):
@@ -164,6 +166,8 @@ class Player:
     def add_card(self, card):
         if len(self.cards) < 5:
             self.cards.append(card)
+        else:
+            self.has_ended = 1
         if self.is_burst() or self.is_21():
             self.has_ended = 1
     def is_burst(self):

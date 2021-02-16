@@ -90,11 +90,11 @@ def decrypt_str(cipher):
     
 
 def serve_card(req):
-    try:
-        info = decrypt_game(req.COOKIES)
-        game = load_game(info)
-    except Exception as e:
-        return HttpResponseServerError(e)
+    #try:
+    info = decrypt_game(req.COOKIES)
+    game = load_game(info)
+    #except Exception as e:
+    #    return HttpResponseServerError(e)
     resp = HttpResponse()
     player_n = int(req.GET.get("player", '-1'))
     if player_n == -1:
