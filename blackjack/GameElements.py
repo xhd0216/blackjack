@@ -105,20 +105,10 @@ def load_game(info):
     """ given a decrypted dictionary, load a game """
     game = Game()
     game.players = []
-    n_of_players = int(info["number_of_players"][0])
+    n_of_players = info["number_of_players"]
     if n_of_players < 0:
         raise ValueError("invalid number of players")
 
-    for i in range(n_of_players):
-        cards_key = "players_cards_%d" % (i+1)
-        ended_key = "players_ended_%d" % (i+1)
-        if  cards_key not in info or ended_key not in info:
-            raise ValueError("missing player info")
-        a_list = []
-        for c in info[cards_key]:
-            a_list.append(create_card(c))
-        p = Player(i+1, a_list, info[ended_key][0])
-        game.players.append(p)
     # dealer
     dealer_cards = "dealer_cards"
     dealer_ended = "dealer_ended"
@@ -127,19 +117,32 @@ def load_game(info):
     d_list = []
     for c in info[dealer_cards]:
         d_list.append(create_card(c))
-    game.dealer = Player(0, d_list, info[dealer_ended][0])
+    game.dealer = Player(0, d_list, info[dealer_ended])
+    game.players.append(game.dealer)
+
+    # other players
+    for i in range(n_of_players):
+        cards_key = "players_cards_%d" % (i+1)
+        ended_key = "players_ended_%d" % (i+1)
+        if  cards_key not in info or ended_key not in info:
+            raise ValueError("missing player info")
+        a_list = []
+        for c in info[cards_key]:
+            a_list.append(create_card(c))
+        p = Player(i+1, a_list, info[ended_key])
+        game.players.append(p)
+    
     # pokers
     if "suites" not in info or "next_index" not in info or "number_of_sets" not in info:
         raise ValueError("missing poker info")
-    ps = PokerSets(int(info["number_of_sets"][0]))
+    ps = PokerSets(info["number_of_sets"])
     ps.suites = info["suites"]
     check_shuffled(ps.suites)
-    ps.next_index = int(info["next_index"][0])
+    ps.next_index = info["next_index"]
     game.ps = ps
 
     # count total number of cards
     total_cards = sum([len(x.cards) for x in game.players])
-    total_cards += len(game.dealer.cards)
     if total_cards != game.ps.next_index:
         raise ValueError("number of cards mismatched")
 
@@ -199,7 +202,7 @@ class Game:
         """ get public status viewable to players """
         ret = {}
         ret["number_of_players"] = self.spots
-        for i in range(len(self.players)-1):
+        for i in range(self.spots):
             ret["players_cards_%d" % (i+1)] = self.players[i+1].get_cards()
             ret["players_ended_%d" % (i+1)] = self.players[i+1].has_ended
         ret["number_of_sets"] = self.ps.sets

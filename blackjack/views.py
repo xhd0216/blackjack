@@ -6,6 +6,7 @@ from django.shortcuts import render
 import random
 import string
 from cryptography.fernet import Fernet
+import json
 
 from .GameElements import Game, PokerSets, Cards, Player, load_game
 
@@ -39,29 +40,19 @@ def decrypt_number(cipher):
     return decrypt_list(cipher)[1]
 
 
-def encrypt_game(game):
-    origin = game.get_status()
-    ret = {}
-    for k in origin.keys():
-        v = origin[k]
-        #new_key = encrypt_str(k)
-        new_key = k
-        if type(v) == int:
-            new_value = encrypt_number(v)
-        elif type(v) == list:
-            new_value = encrypt_list(v)
-        ret[new_key] = new_value
-    return ret
+def encrypt_game(origin):
+    ret = json.dumps(origin)
+    return encrypt_str(ret)
 
 
 def set_cookie(resp, game):
     """ set cookies for http response """
-    cookies = encrypt_game(game)
-    for k in cookies:
-        resp.set_cookie(k, cookies[k])
+    cipher = encrypt_game(game.get_status())
+    resp.set_cookie("data", cipher)
 
 
 def decrypt_game(cookie):
+    """
     ret = {}
     for k in cookie.keys():
         try:
@@ -73,7 +64,8 @@ def decrypt_game(cookie):
         except:
             # ignore all errors
             pass
-    return ret
+    """
+    return json.loads(decrypt_str(cookie))
 
 
 def decrypt_str(cipher):
@@ -91,7 +83,7 @@ def decrypt_str(cipher):
 
 def serve_card(req):
     #try:
-    info = decrypt_game(req.COOKIES)
+    info = decrypt_game(req.COOKIES["data"])
     game = load_game(info)
     #except Exception as e:
     #    return HttpResponseServerError(e)
@@ -110,11 +102,12 @@ def serve_card(req):
             player_n = 0
     c = game.serve_one_card(player_n)
     resp.write(c)
-    set_cookie(resp, game.get_status())
+    set_cookie(resp, game)
     return resp
 
 
 def start_new_game(req):
+    """ API for shuffle """
     n_spots = int(req.GET.get("n_players", "3"))
     game = Game(n_spots, n_sets=1)
     game.first_serve()

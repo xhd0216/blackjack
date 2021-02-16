@@ -81,8 +81,8 @@
         var row = document.getElementById(pkey);
         req.onreadystatechange = function() {
             row.innerHTML = "";
-            var json_obj = JSON.parse(req.responseText);
             if (req.readyState == 4 && req.status == 200) {
+                var json_obj = JSON.parse(req.responseText);
                 fill_table_row(row, json_obj[pkey]);
                 fill_table_row_button(row, spot);
                 find_next_player(json_obj)
