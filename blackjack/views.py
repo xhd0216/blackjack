@@ -87,7 +87,6 @@ def serve_card(req):
     game = load_game(info)
     #except Exception as e:
     #    return HttpResponseServerError(e)
-    resp = HttpResponse()
     player_n = int(req.GET.get("player", '-1'))
     if player_n == -1:
         # try to find the first player
@@ -101,7 +100,9 @@ def serve_card(req):
             # dealer's turn
             player_n = 0
     c = game.serve_one_card(player_n)
-    resp.write(c)
+    ret = game.get_public_status()
+    ret["last_served_card"] = c
+    resp = JsonResponse(ret)
     set_cookie(resp, game)
     return resp
 
