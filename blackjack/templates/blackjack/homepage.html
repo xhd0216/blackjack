@@ -54,8 +54,19 @@
         rid.appendChild(cell_1);
         rid.appendChild(cell_2);
     }
+    
     function pass_player(spot) {
-
+        var req = new XMLHttpRequest();
+        var pkey = `players_cards_${spot}`;
+        req.onreadystatechange = function() {
+            if (req.readyState === 4 && req.status === 200) {
+                // do nothing
+                var json_obj = JSON.parse(req.responseText);
+                find_next_player(json_obj);
+            }
+        }
+        req.open("GET", document.URL + `pass?player=${spot}`, true);
+        req.send(null);
     }
     function find_next_player(json_obj) {
         var nPlayers = json_obj.number_of_players;
@@ -90,9 +101,6 @@
                 fill_table_row_button(row, spot);
                 find_next_player(json_obj);
                 document.getElementById("textplace").innerHTML = json_obj.last_served_card
-            }
-            else {
-                //document.getElementById("textplace").innerHTML = "error: " + req.status + " " + req.readyState + " please re-shuffle";
             }
         }
         req.open("GET", document.URL + `serve?player=${spot}`, true);

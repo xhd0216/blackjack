@@ -232,9 +232,29 @@ class Game:
     def serve_one_card(self, player_id):
         # player id starting from 1
         if player_id > 0:
-            c = self.ps.get_next()
-            self.players[player_id].add_card(c)
+            if not self.players[player_id].has_ended:
+                c = self.ps.get_next()
+                self.players[player_id].add_card(c)
+            else:
+                # TODO error handling
+                pass
         if player_id == 0:
             # dealer
             pass
         return c.get_str()
+
+    def next_player(self):
+        """ get the next player to serve card """
+        i = 1
+        while i <= self.spots:
+            if not self.players[i].has_ended:
+                player_n = i
+                break
+            i += 1
+        if i == self.spots + 1:
+            # dealer's turn
+            player_n = 0
+        return player_n
+
+    def pass_player(self, player_n):
+        self.players[player_n].has_ended = 1

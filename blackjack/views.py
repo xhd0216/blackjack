@@ -16,56 +16,10 @@ ENCRYPTION_TYPE = Fernet(SERVER_KEY)
 
 
 SEPARATOR = "_"
-def encrypt_list(a_list):
-    """ given a poker set, encrypt """
-    enc_str = SEPARATOR.join([str(x) for x in a_list])
-    # adding salt
-    return encrypt_str(enc_str)
-
-def decrypt_list(cipher):
-    ret = decrypt_str(cipher)
-    return ret.split(SEPARATOR)
-
-
 def encrypt_str(s):
     salt = "".join([random.choice(string.ascii_letters) for _ in range(10)])
     plain = (s + SEPARATOR + salt).encode()
     return ENCRYPTION_TYPE.encrypt(plain)
-
-def encrypt_number(a):
-    """ given a number, encrypt """
-    return encrypt_list([a, random.randint(0, 60)])
-
-def decrypt_number(cipher):
-    return decrypt_list(cipher)[1]
-
-
-def encrypt_game(origin):
-    ret = json.dumps(origin)
-    return encrypt_str(ret)
-
-
-def set_cookie(resp, game):
-    """ set cookies for http response """
-    cipher = encrypt_game(game.get_status())
-    resp.set_cookie("data", cipher)
-
-
-def decrypt_game(cookie):
-    """
-    ret = {}
-    for k in cookie.keys():
-        try:
-            #game_key = decrypt_str(k)
-            game_key = k
-            # for all values, decrypt as a list, should check later
-            game_value = decrypt_list(cookie[k])
-            ret[game_key] = game_value
-        except:
-            # ignore all errors
-            pass
-    """
-    return json.loads(decrypt_str(cookie))
 
 
 def decrypt_str(cipher):
@@ -79,26 +33,60 @@ def decrypt_str(cipher):
     plain = ENCRYPTION_TYPE.decrypt(cipher).decode()
     ret = plain.split(SEPARATOR)
     return SEPARATOR.join([x for x in ret[:-1]])
-    
 
-def serve_card(req):
-    #try:
+def encrypt_game(origin):
+    ret = json.dumps(origin)
+    return encrypt_str(ret)
+
+
+def decrypt_game(cookie):
+    return json.loads(decrypt_str(cookie))
+
+
+def set_cookie(resp, game):
+    """ set cookies for http response """
+    cipher = encrypt_game(game.get_status())
+    resp.set_cookie("data", cipher)
+
+
+def check_and_load_game(req):
+    """ load game and check if the game is valid """
     info = decrypt_game(req.COOKIES["data"])
     game = load_game(info)
-    #except Exception as e:
-    #    return HttpResponseServerError(e)
-    player_n = int(req.GET.get("player", '-1'))
+    return game
+
+
+def pass_player(req):
+    """ API player choose to pass """
+    try:
+        game = check_and_load_game(req)
+    except Exception as e:
+        return HttpResponseServerError(e)
+
+    player_n = int(req.GET.get("player", "-1"))
     if player_n == -1:
-        # try to find the first player
-        i = 1
-        while i <= game.number_of_players:
-            if not game.players[i-1].has_ended:
-                player_n = i
-                break
-            i += 1
-        if i == game.number_of_players + 1:
-            # dealer's turn
-            player_n = 0
+        return HttpResponseServerError("missing player number")
+    if game.next_player() != player_n:
+        return HttpResponseServerError("invalid player to pass")
+    game.pass_player(player_n)
+    ret = game.get_public_status()
+    resp = JsonResponse(ret)
+    set_cookie(resp, game)
+    return resp
+
+
+def serve_card(req):
+    """ API serve card """
+    try:
+        game = check_and_load_game(req)
+    except Exception as e:
+        return HttpResponseServerError(e)
+    
+    player_n = int(req.GET.get("player", "-1"))
+    if player_n == -1:
+        return HttpResponseServerError("missing player number")
+    if game.next_player() != player_n:
+        return HttpResponseServerError("invalid player to serve %d, %d" % (game.next_player(), player_n))
     c = game.serve_one_card(player_n)
     ret = game.get_public_status()
     ret["last_served_card"] = c
