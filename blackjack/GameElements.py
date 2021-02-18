@@ -110,26 +110,24 @@ def load_game(info):
         raise ValueError("invalid number of players")
 
     # dealer
-    dealer_cards = "dealer_cards"
-    dealer_ended = "dealer_ended"
-    if dealer_cards not in info or dealer_ended not in info:
+    dealer = "dealer"
+    if dealer not in info:
         raise ValueError("missing dealer info")
     d_list = []
-    for c in info[dealer_cards]:
+    for c in info[dealer]["cards"]:
         d_list.append(create_card(c))
-    game.dealer = Player(0, d_list, info[dealer_ended])
+    game.dealer = Player(0, d_list, info[dealer]["ended"])
     game.players.append(game.dealer)
 
     # other players
     for i in range(n_of_players):
-        cards_key = "players_cards_%d" % (i+1)
-        ended_key = "players_ended_%d" % (i+1)
-        if  cards_key not in info or ended_key not in info:
-            raise ValueError("missing player info")
+        cards_key = "players_%d" % (i+1)
+        if  cards_key not in info:
+            raise ValueError("missing player %d info" % (i+1))
         a_list = []
-        for c in info[cards_key]:
+        for c in info[cards_key]["cards"]:
             a_list.append(create_card(c))
-        p = Player(i+1, a_list, info[ended_key])
+        p = Player(i+1, a_list, info[cards_key]["ended"])
         game.players.append(p)
     
     # pokers
@@ -145,6 +143,10 @@ def load_game(info):
     total_cards = sum([len(x.cards) for x in game.players])
     if total_cards != game.ps.next_index:
         raise ValueError("number of cards mismatched")
+
+    # check if next player is correct
+    if info["next_player"] != game.next_player():
+        raise ValueError("incorrect next player")
 
     return game
 
@@ -182,6 +184,20 @@ class Player:
     def get_dealer_cards(self):
         # with the first card hidden
         return ["hidden"] + [x.get_str() for x in self.cards[1:]]
+    def get_info(self, hide_dealer_card=True):
+        """ return a dict """
+        ret = {}
+        ret["id"] = self.id
+        ret["cards"] = self.get_cards(hide_dealer_card=True)
+        ret["ended"] = self.has_ended
+        if self.dealer and hide_dealer_card:
+            ret["total"] = 0
+        else:
+            ret["total"] = self.get_points()
+        ret["blackjack"] = self.is_blackjack()
+        ret["burst"] = self.is_burst()
+        return ret
+
 
 class Game:
     def __init__(self, n_spots=3, n_sets=1):
@@ -203,11 +219,11 @@ class Game:
         ret = {}
         ret["number_of_players"] = self.spots
         for i in range(self.spots):
-            ret["players_cards_%d" % (i+1)] = self.players[i+1].get_cards()
-            ret["players_ended_%d" % (i+1)] = self.players[i+1].has_ended
+            ret["players_%d" % (i+1)] = self.players[i+1].get_info()
+
         ret["number_of_sets"] = self.ps.sets
-        ret["dealer_cards"] = self.dealer.get_cards(True) # hidden
-        ret["dealer_ended"] = self.dealer.has_ended
+        ret["dealer"] = self.dealer.get_info(hide_dealer_card=True) # hidden
+        ret["next_player"] = self.next_player()
         return ret
 
     def get_status(self):
@@ -215,16 +231,28 @@ class Game:
         # structure of the dict
         # game
         #   number_of_players (int)
-        #   players_cards_i (list)
-        #   players_ended_i (int)
-        #   ...
-        #   dealer_cards (list)
-        #   dealer_ended (int)
-        #   suites (list)0
+        #   players_i = {
+        #       id = int
+        #       cards = ["diamond A", ...]
+        #       ended = int (0 or 1)
+        #       total = int
+        #       blackjack = int (0 or 1)
+        #       burst = int (0 or 1)
+        #   }
+        #   dealer = {
+        #       id = int
+        #       cards = ["diamond A", ...]
+        #       ended = int (0 or 1)
+        #       total = int
+        #       blackjack = int (0 or 1)
+        #       burst = int (0 or 1)
+        #   }
+        #   suites (list)
         #   next_index (int)
         #   number_of_sets (int)
+        #   next_player (int)
         ret = self.get_public_status()
-        ret["dealer_cards"] = self.dealer.get_cards(False) # dealer's cards not hidden
+        ret["dealer"] = self.dealer.get_cards(False) # dealer's cards not hidden
         ret["suites"] = self.ps.suites
         ret["next_index"] = self.ps.next_index
         return ret

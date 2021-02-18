@@ -22,16 +22,27 @@
 </div>
 
 <script>
-    function fill_table_row(rid, jarr) {
+    function fill_table_row(rid, json_obj, spot) {
+        var pkey = `players_${spot}`;
+        var jarr = json_obj[pkey]["cards"];
+
         for (var i = 0; i < jarr.length; i++) {
             var cell = document.createElement("td");
             var cellText = document.createTextNode(jarr[i]);
             cell.appendChild(cellText);
             rid.appendChild(cell);
         }
+        var cell = document.createElement("td");
+        var cellText = document.createTextNode("");
+        if (json_obj[pkey]["blackjack"]) {
+            cellText.textContent = "blackjack!";
+        }
+        else {
+            cellText.textContent = json_obj[pkey]["total"];
+        }
+        fill_table_row_button(rid, spot)
     }
     function fill_table_row_button(rid, spot) {
-        var pkey = `players_ended_${spot}`;
         var button_id = `more_button_id_${spot}`;
         // player can ask for more
         var btn = document.createElement("button");
@@ -72,11 +83,11 @@
         var nPlayers = json_obj.number_of_players;
         var found = false;
         for (var i = 1; i <= nPlayers; i++) {
-            var pkey = `players_ended_${i}`;
-            var ended = json_obj[pkey]
+            var pkey = `players_${i}`;
+            var ended = json_obj[pkey]["ended"]
             var btn = document.getElementById(`more_button_id_${i}`);
             var pass_btn = document.getElementById(`pass_button_id_${i}`);
-            if (found == false && ended == false) {
+            if (found === false && ended === 0) {
                 btn.disabled = false;
                 pass_btn.disabled = false;
                 found = true
@@ -97,10 +108,9 @@
                 tbl.deleteRow(spot-1);
                 var row = tbl.insertRow(spot-1);
                 row.setAttribute("id", pkey);
-                fill_table_row(row, json_obj[pkey]);
-                fill_table_row_button(row, spot);
+                fill_table_row(row, json_obj, spot);
                 find_next_player(json_obj);
-                document.getElementById("textplace").innerHTML = json_obj.last_served_card
+                //document.getElementById("textplace").innerHTML = json_obj.last_served_card
             }
         }
         req.open("GET", document.URL + `serve?player=${spot}`, true);
@@ -119,11 +129,10 @@
                     var row = document.createElement("tr");
                     var pkey = `players_cards_${i}`;
                     row.setAttribute("id", pkey)
-                    fill_table_row(row, json_obj[pkey]);
-                    fill_table_row_button(row, i);
+                    fill_table_row(row, json_obj, i);
                     tbl.appendChild(row);
                 }
-                find_next_player(json_obj)
+                find_next_player(json_obj);
             }
             else {
                 // TODO: show error message here
