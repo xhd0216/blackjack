@@ -77,10 +77,10 @@ def pass_player(req):
 
 def serve_card(req):
     """ API serve card """
-    try:
-        game = check_and_load_game(req)
-    except Exception as e:
-        return HttpResponseServerError(e)
+    #try:
+    game = check_and_load_game(req)
+    #except Exception as e:
+    #    return HttpResponseServerError(e)
     
     player_n = int(req.GET.get("player", "-1"))
     if player_n == -1:

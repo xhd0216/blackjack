@@ -22,12 +22,14 @@ SUITES = [
     "hearts",
     "clubs",
     "diamonds",
+    "hidden",
 ]
 SUITES_DICT = {
     "spades": 0,
     "hearts": 1,
     "clubs": 2,
     "diamonds": 3,
+    "hidden": -1,
 }
 
 
@@ -35,11 +37,13 @@ class Cards:
     def __init__(self, face, suite):
         # face: str
         # suite: int
-        assert face in FACES
         self.face = face
         self.suite = suite
+        self.hidden = suite == "hidden"
 
     def get_value(self):
+        if self.hidden:
+            return 0
         return FACES[self.face]
 
     def get_face(self):
@@ -49,17 +53,25 @@ class Cards:
         return self.suite
 
     def get_str(self):
-        return SUITES[self.suite] + " " + self.face
+        if self.hidden:
+            return "hidden"
+        return SUITES[self.suite] + " " + str(self.face)
 
     def is_Ace(self):
         return self.face == "A"
 
+    def is_hidden(self):
+        return self.hidden
+        
 def create_card(s):
     """ create card from string """
-    # for example, diamonds A
-    card = s.split(" ")
-    if card[0] not in SUITES or card[1] not in FACES_LIST:
-        raise ValueError("not a valid card " + s)
+    # for example, diamonds A, hidden, 
+    if s == "hidden":
+        return Cards(0, s)
+    else:
+        card = s.split(" ")
+        if len(card) != 2 or card[0] not in SUITES or card[1] not in FACES_LIST:
+            raise ValueError("not a valid card " + s)
     return Cards(card[1], SUITES_DICT[card[0]])
 
 
@@ -116,7 +128,7 @@ def load_game(info):
     d_list = []
     for c in info[dealer]["cards"]:
         d_list.append(create_card(c))
-    game.dealer = Player(0, d_list, info[dealer]["ended"])
+    game.dealer = Player(0, d_list, info[dealer]["ended"], dealer=True)
     game.players.append(game.dealer)
 
     # other players
@@ -156,7 +168,9 @@ class Player:
         self.id = pid
         self.has_ended = has_ended # 0: False
         self.dealer = dealer
-    def get_points(self):
+    def get_points(self, hide_dealer_card=True):
+        if self.dealer and hide_dealer_card:
+            return 0
         s = sum([x.get_value() for x in self.cards])
         if any([x.is_Ace() for x in self.cards]) and s < 12:
             s += 10
@@ -178,7 +192,7 @@ class Player:
     def is_burst(self):
         return self.get_points() > 21
     def get_cards(self, hide_dealer_card=True):
-        if self.dealer and hide_dealer_card:
+        if self.dealer:
             return self.get_dealer_cards()
         return [x.get_str() for x in self.cards]
     def get_dealer_cards(self):
@@ -188,12 +202,12 @@ class Player:
         """ return a dict """
         ret = {}
         ret["id"] = self.id
-        ret["cards"] = self.get_cards(hide_dealer_card=True)
+        ret["cards"] = self.get_cards(hide_dealer_card)
         ret["ended"] = self.has_ended
-        if self.dealer and hide_dealer_card:
+        if self.dealer:
             ret["total"] = 0
         else:
-            ret["total"] = self.get_points()
+            ret["total"] = self.get_points(hide_dealer_card)
         ret["blackjack"] = self.is_blackjack()
         ret["burst"] = self.is_burst()
         return ret
@@ -252,7 +266,7 @@ class Game:
         #   number_of_sets (int)
         #   next_player (int)
         ret = self.get_public_status()
-        ret["dealer"] = self.dealer.get_cards(False) # dealer's cards not hidden
+        ret["dealer"] = self.dealer.get_info(False) # dealer's cards not hidden
         ret["suites"] = self.ps.suites
         ret["next_index"] = self.ps.next_index
         return ret
@@ -286,3 +300,46 @@ class Game:
 
     def pass_player(self, player_n):
         self.players[player_n].has_ended = 1
+
+    def wrap_up(self):
+        """ return a vector of results
+            1: dealer wins
+            0: tie
+            -1: player wins
+            -2: player blackjack
+        """
+        ret = []
+        if self.dealer.is_blackjack():
+            # dealer wins
+            for p in self.players:
+                if not p.is_blackjack():
+                    ret.append(1)
+                else:
+                    ret.append(0)
+            return ret
+        elif self.dealer.is_burst():
+            # dealer loses unless player also burst
+            for p in self.players:
+                if p.is_burst():
+                    ret.append(1)
+                elif p.is_blackjack():
+                    ret.append(-2)
+                else:
+                    ret.append(-1)
+            return ret
+        else:
+            d = self.dealer.get_points(False)
+            for p in self.players:
+                if p.is_burst():
+                    ret.append(1)
+                elif p.is_blackjack():
+                    ret.append(-2)
+                else:
+                    c = p.get_points()
+                    if d > c:
+                        ret.append(1)
+                    elif d == c:
+                        ret.append(0)
+                    else:
+                        ret.append(-1)
+            return ret

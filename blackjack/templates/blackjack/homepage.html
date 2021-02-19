@@ -22,9 +22,36 @@
 </div>
 
 <script>
+    function fill_dealer_row(rid, json_obj) {
+        var pkey = "dealer";
+        var jarr = json_obj[pkey]["cards"]
+
+        var dealer_cell = document.createElement("td");
+        var dealer_tag = document.createTextNode("dealer");
+        dealer_cell.appendChild(dealer_tag);
+        rid.appendChild(dealer_cell);
+
+        for (var i = 0; i < jarr.length; i++) {
+            var cell = document.createElement("td");
+            var cellText = document.createTextNode(jarr[i]);
+            cell.appendChild(cellText);
+            rid.appendChild(cell);
+        }
+    }
+
     function fill_table_row(rid, json_obj, spot) {
         var pkey = `players_${spot}`;
         var jarr = json_obj[pkey]["cards"];
+
+        var player_cell = document.createElement("td");
+        var player_tag = document.createTextNode(pkey);
+        player_cell.appendChild(player_tag);
+        rid.appendChild(player_cell);
+
+        var total_cell = document.createElement("td");
+        var total_text = document.createTextNode("total: " + json_obj[pkey]["total"]);
+        total_cell.appendChild(total_text);
+        rid.appendChild(total_cell);
 
         for (var i = 0; i < jarr.length; i++) {
             var cell = document.createElement("td");
@@ -42,19 +69,20 @@
         }
         fill_table_row_button(rid, spot)
     }
+
     function fill_table_row_button(rid, spot) {
         var button_id = `more_button_id_${spot}`;
         // player can ask for more
         var btn = document.createElement("button");
         btn.setAttribute("onclick", "serve_card(" + spot + ")");
-        btn.textContent = "more";
+        btn.textContent = "hit";
         btn.disabled = true;
         btn.setAttribute("id", button_id);
         
         var pass_id = `pass_button_id_${spot}`;
         var pass_btn = document.createElement("button");
         pass_btn.setAttribute("onclick", "pass_player(" + spot + ")");
-        pass_btn.textContent = "pass";
+        pass_btn.textContent = "stand";
         pass_btn.disabled = true;
         pass_btn.setAttribute("id", pass_id)
 
@@ -67,6 +95,7 @@
     }
     
     function pass_player(spot) {
+        // player stand
         var req = new XMLHttpRequest();
         var pkey = `players_cards_${spot}`;
         req.onreadystatechange = function() {
@@ -79,6 +108,7 @@
         req.open("GET", document.URL + `pass?player=${spot}`, true);
         req.send(null);
     }
+
     function find_next_player(json_obj) {
         var nPlayers = json_obj.number_of_players;
         var found = false;
@@ -98,6 +128,7 @@
             }
         }
     }
+
     function serve_card(spot) {
         var req = new XMLHttpRequest();
         var pkey = `players_cards_${spot}`;
@@ -110,12 +141,12 @@
                 row.setAttribute("id", pkey);
                 fill_table_row(row, json_obj, spot);
                 find_next_player(json_obj);
-                //document.getElementById("textplace").innerHTML = json_obj.last_served_card
             }
         }
         req.open("GET", document.URL + `serve?player=${spot}`, true);
         req.send(null);
     }
+
     function shuffle_cards() {
         var req = new XMLHttpRequest();
         var nPlayers = document.getElementById("n_players").value;
@@ -133,6 +164,11 @@
                     tbl.appendChild(row);
                 }
                 find_next_player(json_obj);
+
+                var row = document.createElement("tr");
+                row.setAttribute("id", "dealer_row");
+                fill_dealer_row(row, json_obj);
+                tbl.appendChild(row);
             }
             else {
                 // TODO: show error message here
