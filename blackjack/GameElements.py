@@ -113,64 +113,16 @@ class PokerSets:
         ret["number_of_sets"] = self.sets
 
 
-def load_game(info):
-    """ given a decrypted dictionary, load a game """
-    game = Game()
-    game.players = []
-    n_of_players = info["number_of_players"]
-    if n_of_players < 0:
-        raise ValueError("invalid number of players")
-
-    # dealer
-    dealer = "dealer"
-    if dealer not in info:
-        raise ValueError("missing dealer info")
-    d_list = []
-    for c in info[dealer]["cards"]:
-        d_list.append(create_card(c))
-    game.dealer = Player(0, d_list, info[dealer]["ended"], dealer=True)
-    game.players.append(game.dealer)
-
-    # other players
-    for i in range(n_of_players):
-        cards_key = "players_%d" % (i+1)
-        if  cards_key not in info:
-            raise ValueError("missing player %d info" % (i+1))
-        a_list = []
-        for c in info[cards_key]["cards"]:
-            a_list.append(create_card(c))
-        p = Player(i+1, a_list, info[cards_key]["ended"])
-        game.players.append(p)
-    
-    # pokers
-    if "suites" not in info or "next_index" not in info or "number_of_sets" not in info:
-        raise ValueError("missing poker info")
-    ps = PokerSets(info["number_of_sets"])
-    ps.suites = info["suites"]
-    check_shuffled(ps.suites)
-    ps.next_index = info["next_index"]
-    game.ps = ps
-
-    # count total number of cards
-    total_cards = sum([len(x.cards) for x in game.players])
-    if total_cards != game.ps.next_index:
-        raise ValueError("number of cards mismatched")
-
-    # check if next player is correct
-    if info["next_player"] != game.next_player():
-        raise ValueError("incorrect next player")
-
-    return game
-
 class Player:
-    def __init__(self, pid, cards=[], has_ended=0, dealer=False):
+    def __init__(self, pid, cards=[], has_ended=False, dealer=False):
         self.cards = cards
         self.id = pid
-        self.has_ended = has_ended # 0: False
+        self.has_ended = has_ended 
         self.dealer = dealer
     def get_points(self, hide_dealer_card=True):
         if self.dealer and hide_dealer_card:
-            return 0
+            s = sum([x.get_value() for x in self.cards[1:]])
+            return s
         s = sum([x.get_value() for x in self.cards])
         if any([x.is_Ace() for x in self.cards]) and s < 12:
             s += 10
@@ -186,9 +138,9 @@ class Player:
         if len(self.cards) < 5:
             self.cards.append(card)
         else:
-            self.has_ended = 1
+            self.has_ended = True
         if self.is_burst() or self.is_21():
-            self.has_ended = 1
+            self.has_ended = True
     def is_burst(self):
         return self.get_points() > 21
     def get_cards(self, hide_dealer_card=True):
@@ -204,10 +156,7 @@ class Player:
         ret["id"] = self.id
         ret["cards"] = self.get_cards(hide_dealer_card)
         ret["ended"] = self.has_ended
-        if self.dealer:
-            ret["total"] = 0
-        else:
-            ret["total"] = self.get_points(hide_dealer_card)
+        ret["total"] = self.get_points(hide_dealer_card)
         ret["blackjack"] = self.is_blackjack()
         ret["burst"] = self.is_burst()
         return ret
@@ -233,7 +182,10 @@ class Game:
         ret = {}
         ret["number_of_players"] = self.spots
         for i in range(self.spots):
-            ret["players_%d" % (i+1)] = self.players[i+1].get_info()
+            try:
+                ret["players_%d" % (i+1)] = self.players[i+1].get_info()
+            except:
+                raise ValueError(str(self.players) + str(self.spots) + str(self.players[0].get_info()))
 
         ret["number_of_sets"] = self.ps.sets
         ret["dealer"] = self.dealer.get_info(hide_dealer_card=True) # hidden
@@ -248,7 +200,7 @@ class Game:
         #   players_i = {
         #       id = int
         #       cards = ["diamond A", ...]
-        #       ended = int (0 or 1)
+        #       ended = boolean
         #       total = int
         #       blackjack = int (0 or 1)
         #       burst = int (0 or 1)
@@ -256,7 +208,7 @@ class Game:
         #   dealer = {
         #       id = int
         #       cards = ["diamond A", ...]
-        #       ended = int (0 or 1)
+        #       ended = boolean
         #       total = int
         #       blackjack = int (0 or 1)
         #       burst = int (0 or 1)
@@ -299,7 +251,7 @@ class Game:
         return player_n
 
     def pass_player(self, player_n):
-        self.players[player_n].has_ended = 1
+        self.players[player_n].has_ended = True
 
     def wrap_up(self):
         """ return a vector of results
@@ -343,3 +295,54 @@ class Game:
                     else:
                         ret.append(-1)
             return ret
+
+
+def load_game(info):
+    """ given a decrypted dictionary, load a game """
+    game = Game()
+    game.players = []
+    n_of_players = info["number_of_players"]
+    if n_of_players < 0:
+        raise ValueError("invalid number of players")
+    game.spots = n_of_players
+
+    # dealer
+    dealer = "dealer"
+    if dealer not in info:
+        raise ValueError("missing dealer info")
+    d_list = []
+    for c in info[dealer]["cards"]:
+        d_list.append(create_card(c))
+    game.dealer = Player(0, d_list, info[dealer]["ended"], dealer=True)
+    game.players.append(game.dealer)
+
+    # other players
+    for i in range(n_of_players):
+        cards_key = "players_%d" % (i+1)
+        if  cards_key not in info:
+            raise ValueError("missing player %d info" % (i+1))
+        a_list = []
+        for c in info[cards_key]["cards"]:
+            a_list.append(create_card(c))
+        p = Player(i+1, a_list, info[cards_key]["ended"])
+        game.players.append(p)
+    
+    # pokers
+    if "suites" not in info or "next_index" not in info or "number_of_sets" not in info:
+        raise ValueError("missing poker info")
+    ps = PokerSets(info["number_of_sets"])
+    ps.suites = info["suites"]
+    check_shuffled(ps.suites)
+    ps.next_index = info["next_index"]
+    game.ps = ps
+
+    # count total number of cards
+    total_cards = sum([len(x.cards) for x in game.players])
+    if total_cards != game.ps.next_index:
+        raise ValueError("number of cards mismatched")
+
+    # check if next player is correct
+    if info["next_player"] != game.next_player():
+        raise ValueError("incorrect next player")
+
+    return game

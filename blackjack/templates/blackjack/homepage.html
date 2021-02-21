@@ -117,7 +117,7 @@
             var ended = json_obj[pkey]["ended"]
             var btn = document.getElementById(`more_button_id_${i}`);
             var pass_btn = document.getElementById(`pass_button_id_${i}`);
-            if (found === false && ended === 0) {
+            if (found === false && ended === false) {
                 btn.disabled = false;
                 pass_btn.disabled = false;
                 found = true
