@@ -182,10 +182,7 @@ class Game:
         ret = {}
         ret["number_of_players"] = self.spots
         for i in range(self.spots):
-            try:
-                ret["players_%d" % (i+1)] = self.players[i+1].get_info()
-            except:
-                raise ValueError(str(self.players) + str(self.spots) + str(self.players[0].get_info()))
+            ret["players_%d" % (i+1)] = self.players[i+1].get_info()
 
         ret["number_of_sets"] = self.ps.sets
         ret["dealer"] = self.dealer.get_info(hide_dealer_card=True) # hidden
