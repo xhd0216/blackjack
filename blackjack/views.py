@@ -1,94 +1,28 @@
 from django.shortcuts import render
 
 # Create your views here.
-from django.http import HttpResponse, HttpResponseServerError
+from django.http import HttpResponse, HttpResponseServerError, JsonResponse
 from django.shortcuts import render
 import random
 import string
 from cryptography.fernet import Fernet
+import json
 
-NUM_OF_CARDS = 52
-FACES = {
-    "A": 1,
-    "2": 2,
-    "3": 3,
-    "4": 4,
-    "5": 5,
-    "6": 6,
-    "7": 7,
-    "8": 8,
-    "9": 9,
-    "10": 10,
-    "J": 10,
-    "Q": 10,
-    "K": 10,
-}
-FACES_LIST = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
-SUITES = [
-    "spades",
-    "hearts",
-    "clubs",
-    "diamonds",
-]
-
+from .GameElements import Game, PokerSets, Cards, Player, load_game
 
 SERVER_KEY = b'6ry1SK4icjWBt5k1WhiD3BbTluMyVjtLxbzxxbfO3pg='
-class Cards:
-    def __init__(self, face, suite):
-        # face: str
-        # suite: int
-        assert face in FACES
-        self.face = face
-        self.suite = suite
+ENCRYPTION_TYPE = Fernet(SERVER_KEY)
 
-    def get_value(self):
-        return FACES[self.face]
 
-    def get_face(self):
-        return self.face
-
-    def get_suite(self):
-        return self.suite
-
-    def get_str(self):
-        return SUITES[self.suite] + " " + self.face
-
-class PokerSets:
-    def __init__(self, num_set=1):
-        assert num_set > 0
-        self.suites = [x for x in range(num_set * NUM_OF_CARDS)]
-        self.next_index = 0
-        self.sets = num_set
-    def shuffle(self):
-        random.shuffle(self.suites)
-        self.next_index = 0
-        return self.shuffle
-    def get_next(self):
-        if self.next_index >= len(self.suites):
-            raise ValueError("running out of cards")
-        n = self.suites[self.next_index]
-        self.next_index += 1
-        c = n % NUM_OF_CARDS
-        return Cards(FACES_LIST[c % 13], int(c/13))
-    def load_suite(self, a_list, a_index):
-        check_shuffled(a_list)
-        if len(a_list) != self.sets * NUM_OF_CARDS:
-            raise ValueError("Invalid number of cards")
-        if a_index > self.sets * NUM_OF_CARDS:
-            raise ValueError("Invalid index")
-        self.next_index = a_index
-        self.suites = a_list
 
 SEPARATOR = "_"
-def encrypt_list(a_list):
-    """ given a poker set, encrypt """
-    enc_str = SEPARATOR.join([str(x) for x in a_list])
-    # adding salt
-    enc_str += SEPARATOR + "".join([random.choice(string.ascii_letters) for _ in range(10)])
-    et = Fernet(SERVER_KEY)
-    return et.encrypt(str.encode(enc_str))
+def encrypt_str(s):
+    salt = "".join([random.choice(string.ascii_letters) for _ in range(10)])
+    plain = (s + SEPARATOR + salt).encode()
+    return ENCRYPTION_TYPE.encrypt(plain)
 
-def decrypt_list(cipher):
+
+def decrypt_str(cipher):
     if type(cipher) == str:
         # the string starts like b'...=='xxx
         assert cipher[0] == 'b'
@@ -96,57 +30,80 @@ def decrypt_list(cipher):
         cipher = cipher[2:index]
         cipher = cipher.encode()
 
-    et = Fernet(SERVER_KEY)
-    plain = et.decrypt(cipher).decode()
+    plain = ENCRYPTION_TYPE.decrypt(cipher).decode()
     ret = plain.split(SEPARATOR)
-    return [int(x) for x in ret[:-1]]
+    return SEPARATOR.join([x for x in ret[:-1]])
+
+def encrypt_game(origin):
+    ret = json.dumps(origin)
+    return encrypt_str(ret)
 
 
-def check_shuffled(a_list):
-    if set(a_list) != set(range(len(a_list))):
-        raise ValueError("the given list is not valid")
+def decrypt_game(cookie):
+    return json.loads(decrypt_str(cookie))
 
 
-KEY_OF_RANDOM_SUITE = "x3842r"
-KEY_OF_SUITE_INDEX = "j2984t"
-
-def serve_card(req):
-    ps = PokerSets(1)
-    if KEY_OF_RANDOM_SUITE not in req.COOKIES:
-        # no cookies? 
-        return HttpResponseServerError("cookie not enabled")
-    else:
-        cipher_suite = req.COOKIES.get(KEY_OF_RANDOM_SUITE)
-        plain_suite = decrypt_list(cipher_suite)
-        resp = HttpResponse()
-        ps.load_suite(plain_suite, int(req.COOKIES.get(KEY_OF_SUITE_INDEX)))
-        resp.write(ps.get_next().get_str())
-        resp.set_cookie(KEY_OF_SUITE_INDEX, ps.next_index)
-        return resp
+def set_cookie(resp, game):
+    """ set cookies for http response """
+    cipher = encrypt_game(game.get_status())
+    resp.set_cookie("data", cipher)
 
 
-def index(req):
-    ps = PokerSets(1)
-    resp = render(req, 'blackjack/homepage.html')
+def check_and_load_game(req):
+    """ load game and check if the game is valid """
+    info = decrypt_game(req.COOKIES["data"])
+    game = load_game(info)
+    return game
 
-    if KEY_OF_RANDOM_SUITE not in req.COOKIES:
-        # TODO: set new game
-        # visit for the first time
-        ps.shuffle()
-        resp.set_cookie(KEY_OF_RANDOM_SUITE, encrypt_list(ps.suites))
-        resp.set_cookie(KEY_OF_SUITE_INDEX, str(ps.next_index))
-    else:
-        # game already started
-        pass
-    
+
+def pass_player(req):
+    """ API player choose to pass """
+    try:
+        game = check_and_load_game(req)
+    except Exception as e:
+        return HttpResponseServerError(e)
+
+    player_n = int(req.GET.get("player", "-1"))
+    if player_n == -1:
+        return HttpResponseServerError("missing player number")
+    if game.next_player() != player_n:
+        return HttpResponseServerError("invalid player to pass")
+    game.pass_player(player_n)
+    ret = game.get_public_status()
+    resp = JsonResponse(ret)
+    set_cookie(resp, game)
     return resp
 
 
-if __name__ == "__main__":
-    ps = PokerSets(1)
-    a = encrypt_list(ps.suites)
-    b = decrypt_list(a)
-    print(b)
-    assert len(b) == len(ps.suites)
-    for i in range(len(b)):
-        assert b[i] == ps.suites[i]
+def serve_card(req):
+    """ API serve card """
+    #try:
+    game = check_and_load_game(req)
+    #except Exception as e:
+    #    return HttpResponseServerError(e)
+    
+    player_n = int(req.GET.get("player", "-1"))
+    if player_n == -1:
+        return HttpResponseServerError("missing player number")
+    if game.next_player() != player_n:
+        return HttpResponseServerError("invalid player to serve %d, %d" % (game.next_player(), player_n))
+    c = game.serve_one_card(player_n)
+    ret = game.get_public_status()
+    ret["last_served_card"] = c
+    resp = JsonResponse(ret)
+    set_cookie(resp, game)
+    return resp
+
+
+def start_new_game(req):
+    """ API for shuffle """
+    n_spots = int(req.GET.get("n_players", "3"))
+    game = Game(n_spots, n_sets=1)
+    game.first_serve()
+    resp = JsonResponse(game.get_public_status())
+    set_cookie(resp, game)
+    return resp
+
+
+def index(req):
+    return render(req, 'blackjack/homepage.html')

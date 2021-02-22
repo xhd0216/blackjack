@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>Welcome to Blackjack!</h1>
+
+<label for="n_players">select number of players/spots</label>
+<select name="n_players" id="n_players">
+    <option value=1>1</option>
+    <option value=2>2</option>
+    <option value=3 selected="selected">3</option>
+    <option value=4>4</option>
+    <option value=5>5</option>
+    <option value=6>6</option>
+    <option value=7>7</option>
+</select>
+
+<div id="reserved">
+    <p id="textplace"></p>
+    <table id="dynamic_table">
+    </table>
+</div>
+
+<script>
+    function fill_dealer_row(rid, json_obj) {
+        var pkey = "dealer";
+        var jarr = json_obj[pkey]["cards"]
+
+        var dealer_cell = document.createElement("td");
+        var dealer_tag = document.createTextNode("dealer");
+        dealer_cell.appendChild(dealer_tag);
+        rid.appendChild(dealer_cell);
+
+        for (var i = 0; i < jarr.length; i++) {
+            var cell = document.createElement("td");
+            var cellText = document.createTextNode(jarr[i]);
+            cell.appendChild(cellText);
+            rid.appendChild(cell);
+        }
+
+        var cell = document.createElement("td");
+        var cellText = document.createTextNode("");
+        if (json_obj[pkey]["blackjack"]) {
+            cellText.textContent = "Blackjack!";
+        }
+        else if (json_obj[pkey]["burst"]) {
+            cellText.textContent = "Burst!";
+        }
+        else {
+            cellText.textContent = "total " + json_obj[pkey]["total"];
+        }
+        cell.appendChild(cellText)
+        rid.appendChild(cell)
+        
+    }
+
+    function fill_table_row(rid, json_obj, spot) {
+        var pkey = `players_${spot}`;
+        var jarr = json_obj[pkey]["cards"];
+
+        var player_cell = document.createElement("td");
+        var player_tag = document.createTextNode(pkey);
+        player_cell.appendChild(player_tag);
+        rid.appendChild(player_cell);
+
+        for (var i = 0; i < jarr.length; i++) {
+            var cell = document.createElement("td");
+            var cellText = document.createTextNode(jarr[i]);
+            cell.appendChild(cellText);
+            rid.appendChild(cell);
+        }
+
+        var cell = document.createElement("td");
+        var cellText = document.createTextNode("");
+        if (json_obj[pkey]["blackjack"]) {
+            cellText.textContent = "Blackjack!";
+        }
+        else if (json_obj[pkey]["burst"]) {
+            cellText.textContent = "Burst!";
+        }
+        else {
+            cellText.textContent = "total " + json_obj[pkey]["total"];
+            if (json_obj[pkey].hasOwnProperty("result")) {
+                cellText.textContent += " " + json_obj[pkey]["result"];
+            }
+        }
+        cell.appendChild(cellText)
+        rid.appendChild(cell)
+
+        fill_table_row_button(rid, spot)
+    }
+
+    function fill_table_row_button(rid, spot) {
+        var button_id = `more_button_id_${spot}`;
+        // player can ask for more
+        var btn = document.createElement("button");
+        btn.setAttribute("onclick", "serve_card(" + spot + ")");
+        btn.textContent = "hit";
+        btn.disabled = true;
+        btn.setAttribute("id", button_id);
+        
+        var pass_id = `pass_button_id_${spot}`;
+        var pass_btn = document.createElement("button");
+        pass_btn.setAttribute("onclick", "pass_player(" + spot + ")");
+        pass_btn.textContent = "stand";
+        pass_btn.disabled = true;
+        pass_btn.setAttribute("id", pass_id)
+
+        var cell_1 = document.createElement("td");
+        cell_1.appendChild(btn);
+        var cell_2 = document.createElement("td");
+        cell_2.appendChild(pass_btn);
+        rid.appendChild(cell_1);
+        rid.appendChild(cell_2);
+    }
+
+    function find_next_player(json_obj) {
+        var nPlayers = json_obj.number_of_players;
+        var found = false;
+        for (var i = 1; i <= nPlayers; i++) {
+            var pkey = `players_${i}`;
+            var ended = json_obj[pkey]["ended"]
+            var btn = document.getElementById(`more_button_id_${i}`);
+            var pass_btn = document.getElementById(`pass_button_id_${i}`);
+            if (found === false && ended === false) {
+                btn.disabled = false;
+                pass_btn.disabled = false;
+                found = true
+            }
+            else {
+                btn.disabled = true;
+                pass_btn.disabled = true;
+            }
+        }
+    }
+
+    function draw_table(tid, json_obj) {
+        tid.innerHTML = "";
+        var nPlayers = json_obj["number_of_players"];
+
+        for (var i = 1; i <= nPlayers; i++) {
+            var row = document.createElement("tr");
+            var pkey = `players_cards_${i}`;
+            row.setAttribute("id", pkey);
+            fill_table_row(row, json_obj, i);
+            tid.appendChild(row);
+        }
+        find_next_player(json_obj);
+
+        var row = document.createElement("tr");
+        row.setAttribute("id", "dealer_row");
+        fill_dealer_row(row, json_obj);
+        tid.appendChild(row);
+    }
+
+    function pass_player(spot) {
+        // player stand
+        var req = new XMLHttpRequest();
+        var pkey = `players_cards_${spot}`;
+        req.onreadystatechange = function() {
+            if (req.readyState === 4 && req.status === 200) {
+                // do nothing
+                var json_obj = JSON.parse(req.responseText);
+                var tbl = document.getElementById("dynamic_table");
+                draw_table(tbl, json_obj);
+            }
+        }
+        req.open("GET", document.URL + `pass?player=${spot}`, true);
+        req.send(null);
+    }
+
+    function serve_card(spot) {
+        var req = new XMLHttpRequest();
+        var pkey = `players_cards_${spot}`;
+        req.onreadystatechange = function() {
+            if (req.readyState === 4 && req.status === 200) {
+                var json_obj = JSON.parse(req.responseText);
+                var tbl = document.getElementById("dynamic_table");
+                draw_table(tbl, json_obj);
+            }
+        }
+        req.open("GET", document.URL + `serve?player=${spot}`, true);
+        req.send(null);
+    }
+
+    function shuffle_cards() {
+        var req = new XMLHttpRequest();
+        var nPlayers = document.getElementById("n_players").value;
+        var tbl = document.getElementById("dynamic_table");
+
+        req.onreadystatechange = function() {
+            if (req.readyState === 4 && req.status === 200) {
+                var json_obj = JSON.parse(req.responseText);
+                draw_table(tbl, json_obj);
+            }
+            else {
+                // TODO: show error message here
+            }
+        };
+        req.open("GET", document.URL + `restart?n_players=${nPlayers}`, true);
+        req.send(null);
+    }
+</script>
+<button onclick="shuffle_cards()">Shuffle</button>
+
+</body>
+</html>
