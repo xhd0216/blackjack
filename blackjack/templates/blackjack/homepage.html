@@ -37,6 +37,21 @@
             cell.appendChild(cellText);
             rid.appendChild(cell);
         }
+
+        var cell = document.createElement("td");
+        var cellText = document.createTextNode("");
+        if (json_obj[pkey]["blackjack"]) {
+            cellText.textContent = "Blackjack!";
+        }
+        else if (json_obj[pkey]["burst"]) {
+            cellText.textContent = "Burst!";
+        }
+        else {
+            cellText.textContent = "total " + json_obj[pkey]["total"];
+        }
+        cell.appendChild(cellText)
+        rid.appendChild(cell)
+        
     }
 
     function fill_table_row(rid, json_obj, spot) {
@@ -48,25 +63,30 @@
         player_cell.appendChild(player_tag);
         rid.appendChild(player_cell);
 
-        var total_cell = document.createElement("td");
-        var total_text = document.createTextNode("total: " + json_obj[pkey]["total"]);
-        total_cell.appendChild(total_text);
-        rid.appendChild(total_cell);
-
         for (var i = 0; i < jarr.length; i++) {
             var cell = document.createElement("td");
             var cellText = document.createTextNode(jarr[i]);
             cell.appendChild(cellText);
             rid.appendChild(cell);
         }
+
         var cell = document.createElement("td");
         var cellText = document.createTextNode("");
         if (json_obj[pkey]["blackjack"]) {
-            cellText.textContent = "blackjack!";
+            cellText.textContent = "Blackjack!";
+        }
+        else if (json_obj[pkey]["burst"]) {
+            cellText.textContent = "Burst!";
         }
         else {
-            cellText.textContent = json_obj[pkey]["total"];
+            cellText.textContent = "total " + json_obj[pkey]["total"];
+            if (json_obj[pkey].hasOwnProperty("result")) {
+                cellText.textContent += " " + json_obj[pkey]["result"];
+            }
         }
+        cell.appendChild(cellText)
+        rid.appendChild(cell)
+
         fill_table_row_button(rid, spot)
     }
 

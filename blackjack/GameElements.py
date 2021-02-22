@@ -119,33 +119,39 @@ GAME_RESULTS = {
     0: "TIE",
     1: "DEALER_WIN",
 }
+
 class Player:
     def __init__(self, pid, cards=[], has_ended=False, dealer=False):
         self.cards = cards
         self.id = pid
-        self.has_ended = has_ended 
+        self.has_ended = has_ended
         self.dealer = dealer
         self.game_result = None
         self.game_ended = False
+    
     def set_result(self, res):
         # set game results (int)
         self.game_ended = True
         self.game_result = res
-    def get_points(self, hide_dealer_card=True):
-        if self.dealer and hide_dealer_card:
+
+    def get_points(self, show_private_card=False):
+        if self.dealer and not self.game_ended and not show_private_card:
             s = sum([x.get_value() for x in self.cards[1:]])
             return s
         s = sum([x.get_value() for x in self.cards])
         if any([x.is_Ace() for x in self.cards]) and s < 12:
             s += 10
         return s
+    
     def is_blackjack(self):
         if len(self.cards) == 2:
             c = [x.get_value() for x in self.cards]
             return sorted(c) == [1, 10]
         return False
+    
     def is_21(self):
         return self.get_points() == 21
+    
     def add_card(self, card):
         if len(self.cards) < 5:
             self.cards.append(card)
@@ -157,25 +163,30 @@ class Player:
     def is_burst(self):
         return self.get_points() > 21
 
-    def get_cards(self, hide_dealer_card=True):
+    def get_cards(self):
         if self.dealer:
-            return self.get_dealer_cards(hide_dealer_card)
+            return self.get_dealer_cards()
         return [x.get_str() for x in self.cards]
 
-    def get_dealer_cards(self, hide_dealer_card=True):
+    def get_dealer_cards(self, show_private_card=False):
         # with the first card hidden
-        if hide_dealer_card:
+        if not self.game_ended and not show_private_card:
             return ["hidden"] + [x.get_str() for x in self.cards[1:]]
         else:
             return [x.get_str() for x in self.cards]
 
-    def get_info(self, hide_dealer_card=True):
+    def get_info(self, show_private_card=False):
         """ return a dict """
         ret = {}
         ret["id"] = self.id
-        ret["cards"] = self.get_cards(hide_dealer_card)
-        ret["ended"] = self.has_ended
-        ret["total"] = self.get_points(hide_dealer_card)
+        if self.dealer:
+            ret["cards"] = self.get_dealer_cards(show_private_card)
+            ret["total"] = self.get_points(show_private_card)
+            ret["ended"] = self.game_ended
+        else:
+            ret["cards"] = self.get_cards()
+            ret["ended"] = self.has_ended
+            ret["total"] = self.get_points()
         ret["blackjack"] = self.is_blackjack()
         ret["burst"] = self.is_burst()
         if self.game_ended and not self.dealer:
@@ -194,8 +205,11 @@ class Game:
     def dealer_strategy(self):
         # define a simple dealer strategy
         # should be deprecated later
+
+        # mark as game ended, such that get_points will calc all cards
+        self.dealer.game_ended = True
         if self.next_player() == 0:
-            while len(self.dealer.cards) < 5 and self.dealer.get_points(hide_dealer_card=False) < 17:
+            while len(self.dealer.cards) < 5 and self.dealer.get_points() < 17:
                 self.serve_one_card(0)
 
     def first_serve(self):
@@ -215,7 +229,9 @@ class Game:
             ret["players_%d" % (i+1)] = self.players[i+1].get_info()
 
         ret["number_of_sets"] = self.ps.sets
-        ret["dealer"] = self.dealer.get_info(hide_dealer_card=not self.game_ended()) # hidden
+        # get_info: if game has ended, show dealer cards; otherwise hide first card.
+        self.dealer.game_ended = self.game_ended()
+        ret["dealer"] = self.dealer.get_info()
         ret["next_player"] = self.next_player()
         ret["game_ended"] = self.game_ended()
         return ret
@@ -246,6 +262,7 @@ class Game:
         #   number_of_sets (int)
         #   next_player (int)
         ret = self.get_public_status()
+        ret["dealer"] = self.dealer.get_info(show_private_card=True)
         ret["suites"] = self.ps.suites
         ret["next_index"] = self.ps.next_index
         return ret
@@ -325,7 +342,7 @@ class Game:
                 else:
                     ret.append(-1)
         else:
-            d = self.dealer.get_points(False)
+            d = self.dealer.get_points()
             for p in self.players:
                 if p.is_burst():
                     ret.append(1)
