@@ -113,12 +113,24 @@ class PokerSets:
         ret["number_of_sets"] = self.sets
 
 
+GAME_RESULTS = {
+    -2: "PLAYER_BLACKJACK_WIN",
+    -1: "PLAYER_WIN",
+    0: "TIE",
+    1: "DEALER_WIN",
+}
 class Player:
     def __init__(self, pid, cards=[], has_ended=False, dealer=False):
         self.cards = cards
         self.id = pid
         self.has_ended = has_ended 
         self.dealer = dealer
+        self.game_result = None
+        self.game_ended = False
+    def set_result(self, res):
+        # set game results (int)
+        self.game_ended = True
+        self.game_result = res
     def get_points(self, hide_dealer_card=True):
         if self.dealer and hide_dealer_card:
             s = sum([x.get_value() for x in self.cards[1:]])
@@ -141,15 +153,22 @@ class Player:
             self.has_ended = True
         if self.is_burst() or self.is_21():
             self.has_ended = True
+
     def is_burst(self):
         return self.get_points() > 21
+
     def get_cards(self, hide_dealer_card=True):
         if self.dealer:
-            return self.get_dealer_cards()
+            return self.get_dealer_cards(hide_dealer_card)
         return [x.get_str() for x in self.cards]
-    def get_dealer_cards(self):
+
+    def get_dealer_cards(self, hide_dealer_card=True):
         # with the first card hidden
-        return ["hidden"] + [x.get_str() for x in self.cards[1:]]
+        if hide_dealer_card:
+            return ["hidden"] + [x.get_str() for x in self.cards[1:]]
+        else:
+            return [x.get_str() for x in self.cards]
+
     def get_info(self, hide_dealer_card=True):
         """ return a dict """
         ret = {}
@@ -159,6 +178,8 @@ class Player:
         ret["total"] = self.get_points(hide_dealer_card)
         ret["blackjack"] = self.is_blackjack()
         ret["burst"] = self.is_burst()
+        if self.game_ended and not self.dealer:
+            ret["result"] = GAME_RESULTS[self.game_result]
         return ret
 
 
@@ -170,12 +191,21 @@ class Game:
         self.dealer = self.players[0]
         self.ps.shuffle()
 
+    def dealer_strategy(self):
+        # define a simple dealer strategy
+        # should be deprecated later
+        if self.next_player() == 0:
+            while len(self.dealer.cards) < 5 and self.dealer.get_points(hide_dealer_card=False) < 17:
+                self.serve_one_card(0)
+
     def first_serve(self):
         self.ps.shuffle()
         for p in self.players:
             p.cards = []
             p.add_card(self.ps.get_next())
             p.add_card(self.ps.get_next())
+        if self.game_ended():
+            self.wrap_up()
 
     def get_public_status(self):
         """ get public status viewable to players """
@@ -185,8 +215,9 @@ class Game:
             ret["players_%d" % (i+1)] = self.players[i+1].get_info()
 
         ret["number_of_sets"] = self.ps.sets
-        ret["dealer"] = self.dealer.get_info(hide_dealer_card=True) # hidden
+        ret["dealer"] = self.dealer.get_info(hide_dealer_card=not self.game_ended()) # hidden
         ret["next_player"] = self.next_player()
+        ret["game_ended"] = self.game_ended()
         return ret
 
     def get_status(self):
@@ -215,24 +246,33 @@ class Game:
         #   number_of_sets (int)
         #   next_player (int)
         ret = self.get_public_status()
-        ret["dealer"] = self.dealer.get_info(False) # dealer's cards not hidden
         ret["suites"] = self.ps.suites
         ret["next_index"] = self.ps.next_index
         return ret
         
     def serve_one_card(self, player_id):
         # player id starting from 1
+        if player_id != self.next_player():
+            raise ValueError("Error: invalid player id.")
         if player_id > 0:
             if not self.players[player_id].has_ended:
                 c = self.ps.get_next()
                 self.players[player_id].add_card(c)
+                if self.game_ended():
+                    self.wrap_up()
             else:
                 # TODO error handling
                 pass
-        if player_id == 0:
+        elif player_id == 0:
             # dealer
-            pass
+            c = self.ps.get_next()
+            self.dealer.add_card(c)
         return c.get_str()
+
+    def game_ended(self):
+        if self.dealer.is_blackjack() or self.dealer.is_burst():
+            return True
+        return self.next_player() == 0
 
     def next_player(self):
         """ get the next player to serve card """
@@ -248,7 +288,13 @@ class Game:
         return player_n
 
     def pass_player(self, player_n):
+        """ player choose to stand
+            if all players ended, wrap up game
+        """
         self.players[player_n].has_ended = True
+        if self.next_player() == 0:
+            # the game has ended
+            self.wrap_up()
 
     def wrap_up(self):
         """ return a vector of results
@@ -257,6 +303,10 @@ class Game:
             -1: player wins
             -2: player blackjack
         """
+        # first, dealer gets cards.
+        self.dealer_strategy()
+
+        # second, calculate results
         ret = []
         if self.dealer.is_blackjack():
             # dealer wins
@@ -265,9 +315,8 @@ class Game:
                     ret.append(1)
                 else:
                     ret.append(0)
-            return ret
         elif self.dealer.is_burst():
-            # dealer loses unless player also burst
+            # dealer loses unless player also bursts
             for p in self.players:
                 if p.is_burst():
                     ret.append(1)
@@ -275,7 +324,6 @@ class Game:
                     ret.append(-2)
                 else:
                     ret.append(-1)
-            return ret
         else:
             d = self.dealer.get_points(False)
             for p in self.players:
@@ -291,7 +339,12 @@ class Game:
                         ret.append(0)
                     else:
                         ret.append(-1)
-            return ret
+
+        i = 1
+        while i < len(ret):
+            self.players[i].set_result(ret[i])
+            i += 1
+        return ret
 
 
 def load_game(info):

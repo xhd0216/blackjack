@@ -93,21 +93,6 @@
         rid.appendChild(cell_1);
         rid.appendChild(cell_2);
     }
-    
-    function pass_player(spot) {
-        // player stand
-        var req = new XMLHttpRequest();
-        var pkey = `players_cards_${spot}`;
-        req.onreadystatechange = function() {
-            if (req.readyState === 4 && req.status === 200) {
-                // do nothing
-                var json_obj = JSON.parse(req.responseText);
-                find_next_player(json_obj);
-            }
-        }
-        req.open("GET", document.URL + `pass?player=${spot}`, true);
-        req.send(null);
-    }
 
     function find_next_player(json_obj) {
         var nPlayers = json_obj.number_of_players;
@@ -129,18 +114,49 @@
         }
     }
 
+    function draw_table(tid, json_obj) {
+        tid.innerHTML = "";
+        var nPlayers = json_obj["number_of_players"];
+
+        for (var i = 1; i <= nPlayers; i++) {
+            var row = document.createElement("tr");
+            var pkey = `players_cards_${i}`;
+            row.setAttribute("id", pkey);
+            fill_table_row(row, json_obj, i);
+            tid.appendChild(row);
+        }
+        find_next_player(json_obj);
+
+        var row = document.createElement("tr");
+        row.setAttribute("id", "dealer_row");
+        fill_dealer_row(row, json_obj);
+        tid.appendChild(row);
+    }
+
+    function pass_player(spot) {
+        // player stand
+        var req = new XMLHttpRequest();
+        var pkey = `players_cards_${spot}`;
+        req.onreadystatechange = function() {
+            if (req.readyState === 4 && req.status === 200) {
+                // do nothing
+                var json_obj = JSON.parse(req.responseText);
+                var tbl = document.getElementById("dynamic_table");
+                draw_table(tbl, json_obj);
+            }
+        }
+        req.open("GET", document.URL + `pass?player=${spot}`, true);
+        req.send(null);
+    }
+
     function serve_card(spot) {
         var req = new XMLHttpRequest();
         var pkey = `players_cards_${spot}`;
         req.onreadystatechange = function() {
             if (req.readyState === 4 && req.status === 200) {
                 var json_obj = JSON.parse(req.responseText);
-                var tbl = document.getElementById("dynamic_table")
-                tbl.deleteRow(spot-1);
-                var row = tbl.insertRow(spot-1);
-                row.setAttribute("id", pkey);
-                fill_table_row(row, json_obj, spot);
-                find_next_player(json_obj);
+                var tbl = document.getElementById("dynamic_table");
+                draw_table(tbl, json_obj);
             }
         }
         req.open("GET", document.URL + `serve?player=${spot}`, true);
@@ -153,22 +169,9 @@
         var tbl = document.getElementById("dynamic_table");
 
         req.onreadystatechange = function() {
-            if (req.readyState == 4 && req.status == 200) {
+            if (req.readyState === 4 && req.status === 200) {
                 var json_obj = JSON.parse(req.responseText);
-                tbl.innerHTML = ""
-                for (var i = 1; i <= nPlayers; i++) {
-                    var row = document.createElement("tr");
-                    var pkey = `players_cards_${i}`;
-                    row.setAttribute("id", pkey)
-                    fill_table_row(row, json_obj, i);
-                    tbl.appendChild(row);
-                }
-                find_next_player(json_obj);
-
-                var row = document.createElement("tr");
-                row.setAttribute("id", "dealer_row");
-                fill_dealer_row(row, json_obj);
-                tbl.appendChild(row);
+                draw_table(tbl, json_obj);
             }
             else {
                 // TODO: show error message here
