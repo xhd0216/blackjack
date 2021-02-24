@@ -1,5 +1,40 @@
 <!DOCTYPE html>
 <html>
+    <head>
+        <style>
+        #dynamic_table {
+          font-family: Arial, Helvetica, sans-serif;
+          border-collapse: collapse;
+          table-layout: fixed;
+          width: 60em;
+        }
+        
+        #dynamic_table td, #dynamic_table th {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        
+        #dynamic_table tr:nth-child(even){background-color: #f2f2f2;}
+        
+        #dynamic_table tr:hover {background-color: #ddd;}
+        
+        #dynamic_table thead {
+          padding-top: 12px;
+          padding-bottom: 12px;
+          text-align: center;
+          background-color: #44a347;
+          color: white;
+        }
+
+        #dynamic_table tfoot{
+          padding-top: 12px;
+          padding-bottom: 12px;
+          text-align: left;
+          background-color: #4aaf4d;
+          color: white;
+        }
+        </style>
+    </head>
 <body>
 
 <h1>Welcome to Blackjack!</h1>
@@ -31,9 +66,12 @@
         dealer_cell.appendChild(dealer_tag);
         rid.appendChild(dealer_cell);
 
-        for (var i = 0; i < jarr.length; i++) {
+        for (var i = 0; i < 5; i++) {
             var cell = document.createElement("td");
-            var cellText = document.createTextNode(jarr[i]);
+            var cellText = document.createTextNode("")
+            if (i < jarr.length) {
+                cellText.nodeValue = jarr[i];
+            }
             cell.appendChild(cellText);
             rid.appendChild(cell);
         }
@@ -47,11 +85,10 @@
             cellText.textContent = "Burst!";
         }
         else {
-            cellText.textContent = "total " + json_obj[pkey]["total"];
+            cellText.textContent = json_obj[pkey]["total"];
         }
         cell.appendChild(cellText)
         rid.appendChild(cell)
-        
     }
 
     function fill_table_row(rid, json_obj, spot) {
@@ -59,13 +96,16 @@
         var jarr = json_obj[pkey]["cards"];
 
         var player_cell = document.createElement("td");
-        var player_tag = document.createTextNode(pkey);
+        var player_tag = document.createTextNode(json_obj[pkey]["id"]);
         player_cell.appendChild(player_tag);
         rid.appendChild(player_cell);
 
-        for (var i = 0; i < jarr.length; i++) {
+        for (var i = 0; i < 5; i++) {
             var cell = document.createElement("td");
-            var cellText = document.createTextNode(jarr[i]);
+            var cellText = document.createTextNode("")
+            if (i < jarr.length) {
+                cellText.nodeValue = jarr[i];
+            }
             cell.appendChild(cellText);
             rid.appendChild(cell);
         }
@@ -79,9 +119,9 @@
             cellText.textContent = "Burst!";
         }
         else {
-            cellText.textContent = "total " + json_obj[pkey]["total"];
+            cellText.textContent = json_obj[pkey]["total"];
             if (json_obj[pkey].hasOwnProperty("result")) {
-                cellText.textContent += " " + json_obj[pkey]["result"];
+                cellText.textContent = json_obj[pkey]["result"];
             }
         }
         cell.appendChild(cellText)
@@ -137,6 +177,17 @@
     function draw_table(tid, json_obj) {
         tid.innerHTML = "";
         var nPlayers = json_obj["number_of_players"];
+        
+        // draw header
+        var _header = document.getElementById("dynamic_table").createTHead();
+        var _row = _header.insertRow(0);
+        var _cell_1 = _row.insertCell(0);
+        _cell_1.innerHTML = "Player";
+        var _cell_2 = _row.insertCell(1);
+        _cell_2.innerHTML = "Cards";
+        _cell_2.setAttribute("colspan", "5");
+        var _cell_3 = _row.insertCell(2);
+        _cell_3.innerHTML = "Result";
 
         for (var i = 1; i <= nPlayers; i++) {
             var row = document.createElement("tr");
@@ -147,7 +198,7 @@
         }
         find_next_player(json_obj);
 
-        var row = document.createElement("tr");
+        var row = document.createElement("tfoot");
         row.setAttribute("id", "dealer_row");
         fill_dealer_row(row, json_obj);
         tid.appendChild(row);

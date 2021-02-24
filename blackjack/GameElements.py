@@ -114,10 +114,10 @@ class PokerSets:
 
 
 GAME_RESULTS = {
-    -2: "PLAYER_BLACKJACK_WIN",
-    -1: "PLAYER_WIN",
-    0: "TIE",
-    1: "DEALER_WIN",
+    -2: "player_blackjack",
+    -1: "player_wins",
+    0: "tie",
+    1: "dealer_wins",
 }
 
 class Player:
