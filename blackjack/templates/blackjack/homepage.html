@@ -3,7 +3,7 @@
     <head>
         <style>
         #dynamic_table {
-          font-family: Arial, Helvetica, sans-serif;
+          font-family: comic sans ms;
           border-collapse: collapse;
           table-layout: fixed;
           width: 60em;
@@ -33,13 +33,26 @@
           background-color: #4aaf4d;
           color: white;
         }
+        h1 {
+          color: #44a347;
+        }
+        body {
+          font-family: comic sans ms;
+        }
+        button {
+          border: 5px solid #44a347;
+          border-radius: 17px;
+          font-family: comic sans ms;
+          font-size: 15px;
+          cursor: pointer;
+        }
         </style>
     </head>
 <body>
 
 <h1>Welcome to Blackjack!</h1>
 
-<label for="n_players">select number of players/spots</label>
+<label for="n_players">Select number of players/spots</label>
 <select name="n_players" id="n_players">
     <option value=1>1</option>
     <option value=2>2</option>
@@ -49,6 +62,7 @@
     <option value=6>6</option>
     <option value=7>7</option>
 </select>
+<button onclick="shuffle_cards()">Shuffle</button>
 
 <div id="reserved">
     <p id="textplace"></p>
@@ -252,7 +266,6 @@
         req.send(null);
     }
 </script>
-<button onclick="shuffle_cards()">Shuffle</button>
 
 </body>
 </html>
