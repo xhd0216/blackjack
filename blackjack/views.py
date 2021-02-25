@@ -3,6 +3,7 @@ from django.shortcuts import render
 # Create your views here.
 from django.http import HttpResponse, HttpResponseServerError, JsonResponse
 from django.shortcuts import render
+import os
 import random
 import string
 from cryptography.fernet import Fernet
@@ -10,8 +11,8 @@ import json
 
 from .GameElements import Game, PokerSets, Cards, Player, load_game
 
-SERVER_KEY = b'6ry1SK4icjWBt5k1WhiD3BbTluMyVjtLxbzxxbfO3pg='
-ENCRYPTION_TYPE = Fernet(SERVER_KEY)
+SERVER_KEY = os.environ.get("DJANGO_FERNET_SECRET")
+ENCRYPTION_TYPE = Fernet(SERVER_KEY.encode())
 
 
 
