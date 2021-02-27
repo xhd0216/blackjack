@@ -1,19 +1,22 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 # Create your views here.
-from random_thoughts.options_codes.download_prices import extract_data_wrapper
+from randomthoughts.stock_codes.download_prices import stock_download
 import json
 
-import plotly.express as px
+import plotly.graph_objects as go
 
-def get_image():
-    fig =px.scatter(x=range(10), y=range(10))
+
+def get_image(data):
+    fig = go.Figure([go.Scatter(x=data["timestamp"], y=data["close"])])
+    #fig = go.Figure([go.Scatter(x=data["timestamp"], y=data["close"]), go.Bar(x=data["timestamp"], y=data["volume"])])
     return fig.to_html(include_plotlyjs="cdn")
 
-    
 
 def index(req):
-    _, data = extract_data_wrapper("aapl")
-    #resp = HttpResponse(json.dumps(data, indent=4, sort_keys=True))
-    resp = HttpResponse(get_image())
+    data = stock_download("tsla", "1d", "1y")
+    #raise ValueError("here")
+    resp = HttpResponse(get_image(data))
+    #resp = JsonResponse(data)
+
     return resp

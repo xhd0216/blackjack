@@ -11,7 +11,8 @@ import json
 
 from .GameElements import Game, PokerSets, Cards, Player, load_game
 
-SERVER_KEY = os.environ.get("DJANGO_FERNET_SECRET")
+# SERVER_KEY = os.environ.get("DJANGO_FERNET_SECRET")
+SERVER_KEY = "FD5AxBJS9yAmHjbcxrGnG8OA0LlDDiAdXtZpHnpXv5k="
 ENCRYPTION_TYPE = Fernet(SERVER_KEY.encode())
 
 
