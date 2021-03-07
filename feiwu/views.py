@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse, HttpResponseNotFound
+from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseServerError
 # Create your views here.
 from randomthoughts.drawing.tech_lib import get_image
 import json
@@ -10,8 +10,11 @@ def get_symbol(req):
     symbol = req.GET.get("s", None)
     gap = req.GET.get("g", None)
     rng = req.GET.get("r", None)
-    fig = get_image()
-    #raise ValueError("here %d" % len(fig))
+    try:
+      fig = get_image(symbol, gap, rng)
+    except:
+      return HttpResponseServerError("Cannot find data for %s" % symbol)
+      
     resp = HttpResponse(fig)
     return resp
 
