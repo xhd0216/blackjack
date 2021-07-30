@@ -17,8 +17,9 @@ from django.contrib import admin
 from django.urls import include, path
 
 urlpatterns = [
+    path('', include("telegram.urls")),
     path('admin/', admin.site.urls),
     path('blackjack/', include("blackjack.urls")),
     path('random/', include("feiwu.urls")),
-    path('telegram/', include ("telegram.urls")),
+    path('telegram/', include("telegram.urls")),
 ]
