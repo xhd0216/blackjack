@@ -41,11 +41,12 @@ def get_symbol(req):
     try:
         file_path = os.environ['STATICIMGPATH']
         filename = drawing(None, file_path=file_path)
-        referer = req.headers.get("X_FROM_TG", None)
+        file_id = filename.split('.')[0]
+        referer = req.headers.get("X-FROM-TG", None)
         if referer:
-            resp = HttpResponse(filename)
+            resp = HttpResponse(file_id)
         else:
-            resp = HttpResponse(html % filename.split('.')[0])
+            resp = HttpResponse(html % file_id)
     except Exception as e:
         return HttpResponseServerError("exception happened")
 
