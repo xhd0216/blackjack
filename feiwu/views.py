@@ -14,19 +14,22 @@ html = """
     <title>picture</title>
 </head>
 <body>
-    <img src="/random/figure" alt="haha">
+    <img src="/random/figure?id=%s" alt="pic not found">
 </body>
 </html>
 """
 
 def generate_pic(req):
     """ download data and generate figure """
+    filename = req.GET.get("id", None)
+    if filename:
+        filename += '.png'
     file_path = os.environ['STATICIMGPATH']
-    filename = drawing(None, file_path=file_path)
+    full_file_path = os.path.join(file_path, filename)
     try:
-        resp = FileResponse(open(os.path.join(file_path, filename)))
+        resp = FileResponse(open(full_file_path, 'r'))
     except Exception as e:
-        return HttpResponseServerError("exception")
+        return HttpResponseServerError("exception", full_file_path, str(e))
     return resp
 
 
@@ -35,7 +38,17 @@ def get_symbol(req):
     symbol = req.GET.get("s", None)
     gap = req.GET.get("g", None)
     rng = req.GET.get("r", None)
-    resp = HttpResponse(html)
+    try:
+        file_path = os.environ['STATICIMGPATH']
+        filename = drawing(None, file_path=file_path)
+        referer = req.headers.get("X_FROM_TG", None)
+        if referer:
+            resp = HttpResponse(filename)
+        else:
+            resp = HttpResponse(html % filename.split('.')[0])
+    except Exception as e:
+        return HttpResponseServerError("exception happened")
+
     return resp
 
 def index(req):
