@@ -4,7 +4,7 @@ import os
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseServerError, FileResponse
 
-from randomthoughts.drawing.tech_lib import get_image
+#from randomthoughts.drawing.tech_lib import get_image
 from trendlines.server import drawing, get_image_full_path
 from trendlines.web import get_tick_id
 
@@ -50,7 +50,11 @@ def fetch_image(comp_cfg):
 
 def get_image_id(cfg):
     """ get image id """
-    return next(get_tick_id(cfg), None)
+    """
+        get_tick_id is a multithreading task; it returns the image id if found
+        if not found, it will return None and start a thread to finish the work
+    """
+    return get_tick_id(cfg)
 
 
 def get_symbol(req):
