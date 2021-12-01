@@ -1,10 +1,11 @@
 import json
 import os
+import urllib3
+import jwt
 
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseServerError, FileResponse
 
-#from randomthoughts.drawing.tech_lib import get_image
 from trendlines.server import drawing, get_image_full_path
 from trendlines.web import get_tick_id
 
@@ -20,6 +21,7 @@ html = """
 </body>
 </html>
 """
+
 
 def generate_pic(req):
     """ download data and generate figure """
@@ -54,7 +56,20 @@ def get_image_id(cfg):
         get_tick_id is a multithreading task; it returns the image id if found
         if not found, it will return None and start a thread to finish the work
     """
-    return get_tick_id(cfg)
+    #return get_tick_id(cfg)
+    http = urllib3.PoolManager()
+    payload = {
+                'user': 'frontend',
+                'symbol': cfg['symbol'],
+                'interval': cfg['interval'],
+              }
+    token = jwt.encode(payload, sk, algorithm='RS256')
+    resp = http.request('POST', 'data_interface_ctn:5000/info',
+                        headers = {'token': token, 'user': 'test'})
+    if resp.status != 200:
+        return None
+    ret = resp.data.decode()
+    return json.loads(ret)['_id']
 
 
 def get_symbol(req):
