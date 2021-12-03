@@ -16,6 +16,5 @@ setuptools.setup(
     install_requires=[
         'cryptography',
         'PyJWT',
-        'trendlines',
     ],
 )

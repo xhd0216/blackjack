@@ -6,9 +6,6 @@ import jwt
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseServerError, FileResponse
 
-from trendlines.server import drawing, get_image_full_path
-from trendlines.web import get_tick_id
-
 
 html = """
 <!DOCTYPE html>
@@ -21,6 +18,14 @@ html = """
 </body>
 </html>
 """
+
+
+
+def get_image_full_path(file_path, file_id):
+    if not file_path:
+        file_path = os.environ['STATICIMGPATH']
+    file_name = "%s.png" % file_id
+    return os.path.join(file_path, file_name)
 
 
 def generate_pic(req):
@@ -40,36 +45,31 @@ REQ_PARAM = {
     "r": "range",
 }
 
-def fetch_image(comp_cfg):
-    try:
-        file_path = os.environ['STATICIMGPATH']
-        filename = drawing(None, file_path=file_path, comp_cfg=comp_cfg)
-        file_id = filename.split('.')[0]
-        return file_id
-    except Exception as e:
-        raise e
+USER_NAME = os.environ['USERNAME']
+DATAPLANE_NAME = os.environ['DATAPLANENAME']
+with open('/public_keys/%s.pem.sk' % USER_NAME, 'r') as sk:
+    SIGNING_KEY = sk.read()
 
-
+# XXX: think how to load secret keys
 def get_image_id(cfg):
     """ get image id """
     """
         get_tick_id is a multithreading task; it returns the image id if found
         if not found, it will return None and start a thread to finish the work
     """
-    #return get_tick_id(cfg)
     http = urllib3.PoolManager()
     payload = {
-                'user': 'frontend',
+                'user': USER_NAME,
                 'symbol': cfg['symbol'],
                 'interval': cfg['interval'],
               }
-    token = jwt.encode(payload, sk, algorithm='RS256')
-    resp = http.request('POST', 'data_interface_ctn:5000/info',
-                        headers = {'token': token, 'user': 'test'})
+    token = jwt.encode(payload, SIGNING_KEY, algorithm='RS256')
+    resp = http.request('POST', '%s:5000/info' % DATAPLANE_NAME,
+                        headers = {'token': token, 'user': USER_NAME})
     if resp.status != 200:
         return None
     ret = resp.data.decode()
-    return json.loads(ret)['_id']
+    return json.loads(ret)
 
 
 def get_symbol(req):
@@ -81,9 +81,12 @@ def get_symbol(req):
 
     try:
         # FIXME: get_image_id should have full config
-        file_id = get_image_id(comp_cfg)
-        if not file_id:
+        file_doc = get_image_id(comp_cfg)
+        # TODO: check if the file is update-to-date
+        if not file_doc:
             file_id = "NOT_READY"
+        else:
+            file_id = file_doc['_id']
         referer = req.headers.get("X-FROM-TG", None)
         if referer:
             resp = HttpResponse(file_id)
