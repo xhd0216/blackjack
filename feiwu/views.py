@@ -34,6 +34,8 @@ def generate_pic(req):
     full_file_path = get_image_full_path(None, filename)
     try:
         resp = FileResponse(open(full_file_path, 'r'))
+        print(full_file_path)
+        raise ValueError(full_file_path)
     except Exception as e:
         return HttpResponseServerError("exception", full_file_path, str(e))
     return resp
@@ -47,8 +49,9 @@ REQ_PARAM = {
 
 USER_NAME = os.environ['USERNAME']
 DATAPLANE_NAME = os.environ['DATAPLANENAME']
-with open('/public_keys/%s.pem.sk' % USER_NAME, 'r') as sk:
+with open('%s/%s.pem.sk' % (os.environ['PUBLICKEYPATH'], USER_NAME), 'r') as sk:
     SIGNING_KEY = sk.read()
+
 
 # XXX: think how to load secret keys
 def get_image_id(cfg):
