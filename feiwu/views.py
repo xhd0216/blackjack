@@ -34,8 +34,6 @@ def generate_pic(req):
     full_file_path = get_image_full_path(None, filename)
     try:
         resp = FileResponse(open(full_file_path, 'r'))
-        print(full_file_path)
-        raise ValueError(full_file_path)
     except Exception as e:
         return HttpResponseServerError("exception", full_file_path, str(e))
     return resp
